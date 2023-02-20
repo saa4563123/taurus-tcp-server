@@ -15,7 +15,7 @@ class UserManager:
     # 사용자 등록 함수
     def addUser(self, username, conn, addr):
         if username in self.users:
-            conn.send('[TAURUS] 이미 연결된 닉네임 입니다.\n'.encode())
+            conn.send('[TAURUS] 이미 사용중인 닉네임 입니다.\n'.encode())
             return None
 
         lock.acquire()
@@ -50,7 +50,7 @@ class UserManager:
 
     # 전체 메시지 전송 함수
     def sendMessageToAll(self, msg):
-        for conn, addr in self.users.values():
+       for conn, addr in self.users.values():
             conn.send(msg.encode())
 
 class MyTcpHandler(socketserver.BaseRequestHandler):
@@ -60,9 +60,20 @@ class MyTcpHandler(socketserver.BaseRequestHandler):
         print('[TAURUS] [%s] 연결됨' % self.client_address[0])
 
         try:
-            username = self.registerUsername()
+            if self.client_address[0] == socket.gethostbyname(socket.gethostname()):
+                # username = self.registerServer() <~~ 구현중
+                username = self.registerUsername()
+            else:
+                username = self.registerUsername()
             msg = self.request.recv(1024)
             while msg:
+
+                # 시간 로그
+                now = datetime.now()
+                print('[', end="")
+                print(now.date(), now.time(), end="")
+                print(']', end=" ")
+
                 print('[%s] ' % username, end='')
                 print(msg.decode())
                 if self.userman.messageHandler(username, msg.decode()) == -1:
@@ -87,6 +98,14 @@ class MyTcpHandler(socketserver.BaseRequestHandler):
             username = self.request.recv(1024)
             username = username.decode().strip()
             if self.userman.addUser(username, self.request, self.client_address):
+                print('[TAURUS] [%s] 접속 ' % username, end="")
+
+                # 시간 로그
+                now = datetime.now()
+                print('[', end="")
+                print(now.date(), now.time(), end="")
+                print(']')
+
                 return username
 
 class ChatingServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
